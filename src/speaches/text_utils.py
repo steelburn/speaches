@@ -117,3 +117,25 @@ def strip_emojis(text: str) -> str:
     )
 
     return emoji_pattern.sub(r"", text)
+
+
+def strip_markdown_emphasis(text: str) -> str:
+    """Remove markdown emphasis markers from text.
+
+    Examples:
+        - "Hello my name is **Jon**" -> "Hello my name is Jon"
+        - "I *really* like this" -> "I really like this"
+        - "This is __underlined__" -> "This is underlined"
+        - "This is _italic_" -> "This is italic"
+
+    """
+    # Remove bold (**text**)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    # Remove italic (*text*)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+    # Remove underlined (__text__)
+    text = re.sub(r"__(.*?)__", r"\1", text)
+    # Remove italic with underscore (_text_)
+    text = re.sub(r"_(.*?)_", r"\1", text)
+
+    return text

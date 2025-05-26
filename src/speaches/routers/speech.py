@@ -12,7 +12,7 @@ from speaches.executors.kokoro import utils as kokoro_utils
 from speaches.executors.piper import utils as piper_utils
 from speaches.hf_utils import get_model_card_data_from_cached_repo_info, get_model_repo_path
 from speaches.model_aliases import ModelId
-from speaches.text_utils import strip_emojis
+from speaches.text_utils import strip_emojis, strip_markdown_emphasis
 
 # https://platform.openai.com/docs/api-reference/audio/createSpeech#audio-createspeech-response_format
 DEFAULT_RESPONSE_FORMAT = "mp3"
@@ -66,6 +66,7 @@ async def synthesize(
     assert model_card_data is not None, cached_repo_info  # FIXME
 
     body.input = strip_emojis(body.input)
+    body.input = strip_markdown_emphasis(body.input)
 
     if kokoro_utils.hf_model_filter.passes_filter(model_card_data):
         if body.speed < 0.5 or body.speed > 2.0:
