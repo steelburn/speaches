@@ -229,8 +229,8 @@ async def realtime_webrtc(
         logger.info(f"Filtered codecs: {media.rtp.codecs}")
 
     start = time.perf_counter()
-    # NOTE: when connected to Tailscale, this step takes ~5 seconds. Somewhat relevant https://groups.google.com/g/discuss-webrtc/c/MYTwERXGrM8
-    await pc.setLocalDescription(answer)
+    # NOTE: when connected to Tailscale, this step takes ~5 seconds (unless list of iceServers is empty). Somewhat relevant https://groups.google.com/g/discuss-webrtc/c/MYTwERXGrM8
+    await pc.setLocalDescription(RTCSessionDescription(sdp=str(answer_session_description), type="answer"))
     logger.info(f"Setting local description took {time.perf_counter() - start:.3f} seconds")
 
     rtc_session_tasks[ctx.session.id].add(asyncio.create_task(event_listener(ctx)))
