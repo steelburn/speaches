@@ -4,7 +4,13 @@ import logging
 import time
 from typing import Annotated
 
-from aiortc import RTCConfiguration, RTCDataChannel, RTCPeerConnection, RTCRtpCodecParameters, RTCSessionDescription
+from aiortc import (
+    RTCConfiguration,
+    RTCDataChannel,
+    RTCPeerConnection,
+    RTCRtpCodecParameters,
+    RTCSessionDescription,
+)
 from aiortc.rtcrtpreceiver import RemoteStreamTrack
 from aiortc.sdp import SessionDescription
 from av.audio.frame import AudioFrame
@@ -78,9 +84,10 @@ async def rtc_datachannel_sender(ctx: SessionContext, channel: RTCDataChannel) -
             if server_event.type == "response.audio.delta":
                 logger.debug("Skipping response.audio.delta event")
                 continue
-            logger.debug(f"Sending {event.type} event")
-            channel.send(server_event.model_dump_json())
-            logger.info(f"Sent {event.type} event")
+            message = server_event.model_dump_json()
+            logger.debug(f"Sending {event.type} event message ({len(message)} bytes)")
+            channel.send(message)
+            logger.info(f"Sent {event.type} event message ({len(message)} bytes)")
     except BaseException:
         logger.exception("Sender task failed")
         ctx.pubsub.subscribers.remove(q)
@@ -143,6 +150,26 @@ def datachannel_handler(ctx: SessionContext, channel: RTCDataChannel) -> None:
     rtc_session_tasks[ctx.session.id].add(asyncio.create_task(rtc_datachannel_sender(ctx, channel)))
 
     channel.on("message")(lambda message: message_handler(ctx, message))
+
+    @channel.on("open")
+    def _handle_datachannel_open(*args, **kwargs) -> None:  # noqa: ANN002
+        logger.info(f"Data channel opened: {channel.id} (args={args}, kwargs={kwargs})")
+
+    @channel.on("close")
+    def _handle_datachannel_close(*args, **kwargs) -> None:  # noqa: ANN002
+        logger.info(f"Data channel closed: {channel.id} (args={args}, kwargs={kwargs})")
+
+    @channel.on("closing")
+    def _handle_datachannel_closing(*args, **kwargs) -> None:  # noqa: ANN002
+        logger.info(f"Data channel closing: {channel.id} (args={args}, kwargs={kwargs})")
+
+    @channel.on("error")
+    def _handle_datachannel_error(*args, **kwargs) -> None:  # noqa: ANN002
+        logger.error(f"Data channel error: {channel.id} (args={args}, kwargs={kwargs})")
+
+    @channel.on("bufferedamountlow")
+    def _handle_datachannel_bufferedamountlow(*args, **kwargs) -> None:  # noqa: ANN002
+        logger.info(f"Data channel buffered amount low: {channel.id} (args={args}, kwargs={kwargs})")
 
 
 def iceconnectionstatechange_handler(_ctx: SessionContext, pc: RTCPeerConnection) -> None:
