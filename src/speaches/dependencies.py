@@ -71,7 +71,8 @@ security = HTTPBearer()
 async def verify_api_key(
     config: ConfigDependency, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> None:
-    if credentials.credentials != config.api_key:
+    assert config.api_key is not None
+    if credentials.credentials != config.api_key.get_secret_value():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
