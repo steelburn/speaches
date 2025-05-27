@@ -8,11 +8,14 @@ TIMEOUT_SECONDS = 180
 TIMEOUT = httpx.Timeout(timeout=TIMEOUT_SECONDS)
 
 
-def base_url_from_gradio_req(request: gr.Request, config: Config) -> str:
+def base_url_from_gradio_req(request: gr.Request | None, config: Config) -> str:
     if config.loopback_host_url is not None and len(config.loopback_host_url) > 0:
         return config.loopback_host_url
+    if request is None:
+        msg = "`request` is None (this happens when running the service behind a reverse-proxy) you should set config.loopback_host_url"
+        raise ValueError(msg)
+    assert request.request is not None, request
     # NOTE: `request.request.url` seems to always have a path of "/gradio_api/queue/join"
-    assert request.request is not None
     return f"{request.request.url.scheme}://{request.request.url.netloc}"
 
 
