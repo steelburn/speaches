@@ -24,6 +24,7 @@ from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
 from openai.types.chat.chat_completion_chunk import ChoiceDelta
 from pydantic import Field, model_validator
 
+from speaches import text_utils
 from speaches.dependencies import (
     CompletionClientDependency,
     SpeechClientDependency,
@@ -171,8 +172,15 @@ class AudioChatStream:
         start = time.perf_counter()
         # TODO: parallelize
         async for sentence in self.sentence_chunker:
+            sentence_clean = sentence.strip()
+            sentence_clean = text_utils.strip_markdown_emphasis(sentence_clean)
+            sentence_clean = text_utils.strip_emojis(sentence_clean)
+            sentence_clean = sentence_clean.strip()
+            if len(sentence_clean) == 0:
+                logger.warning(f"Skipping empty sentence. ORIGINAL: {sentence}")
+                continue  # skip empty sentences
             res = await self.speech_client.create(
-                input=sentence,
+                input=sentence_clean,
                 model=self.body.speech_model,
                 voice=self.body.audio.voice,  # pyright: ignore[reportArgumentType]
                 response_format="pcm",
