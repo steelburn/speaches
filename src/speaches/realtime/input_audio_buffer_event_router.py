@@ -7,6 +7,7 @@ from faster_whisper.transcribe import get_speech_timestamps
 from faster_whisper.vad import VadOptions
 import numpy as np
 from numpy.typing import NDArray
+import openai
 from openai.types.beta.realtime.error_event import Error
 
 from speaches.audio import audio_samples_from_file
@@ -28,6 +29,7 @@ from speaches.types.realtime import (
     InputAudioBufferSpeechStoppedEvent,
     TurnDetection,
     create_invalid_request_error,
+    create_server_error,
 )
 
 MIN_AUDIO_BUFFER_DURATION_MS = 100  # based on the OpenAI's API response
@@ -191,4 +193,14 @@ async def handle_input_audio_buffer_committed(ctx: SessionContext, event: InputA
     )
     transcriber.start()
     assert transcriber.task is not None
+    try:
+        await transcriber.task
+    except openai.APIStatusError as e:
+        ctx.pubsub.publish_nowait(
+            create_invalid_request_error(message=e.message)
+            if e.status_code < 500
+            else create_server_error(
+                message=e.message,
+            )
+        )
     await transcriber.task
