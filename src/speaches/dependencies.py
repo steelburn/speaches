@@ -124,19 +124,26 @@ CompletionClientDependency = Annotated[AsyncCompletions, Depends(get_completion_
 
 @lru_cache
 def get_speech_client() -> AsyncSpeech:
-    # this might not work as expected if `speech_router` won't have shared state (access to the same `model_manager`) with the main FastAPI `app`. TODO: verify
-    from speaches.routers.speech import (
-        router as speech_router,
-    )
-
     config = get_config()
-    http_client = AsyncClient(
-        transport=ASGITransport(speech_router), base_url="http://test/v1"
-    )  # NOTE: "test" can be replaced with any other value
+    if config.loopback_host_url is None:
+        # this might not work as expected if `speech_router` won't have shared state (access to the same `model_manager`) with the main FastAPI `app`. TODO: verify
+        from speaches.routers.speech import (
+            router as speech_router,
+        )
+
+        http_client = AsyncClient(
+            transport=ASGITransport(speech_router),
+            base_url="http://test/v1",
+        )  # NOTE: "test" can be replaced with any other value
+    else:
+        http_client = AsyncClient(
+            base_url=f"{config.loopback_host_url}/v1",
+        )
     oai_client = AsyncOpenAI(
         http_client=http_client,
         api_key=config.api_key.get_secret_value() if config.api_key else "cant-be-empty",
         max_retries=1,
+        base_url=f"{config.loopback_host_url}/v1",
     )
     return oai_client.audio.speech
 
@@ -146,19 +153,26 @@ SpeechClientDependency = Annotated[AsyncSpeech, Depends(get_speech_client)]
 
 @lru_cache
 def get_transcription_client() -> AsyncTranscriptions:
-    # this might not work as expected if `stt_router` won't have shared state (access to the same `model_manager`) with the main FastAPI `app`. TODO: verify
-    from speaches.routers.stt import (
-        router as stt_router,
-    )
-
     config = get_config()
-    http_client = AsyncClient(
-        transport=ASGITransport(stt_router), base_url="http://test/v1"
-    )  # NOTE: "test" can be replaced with any other value
+    if config.loopback_host_url is None:
+        # this might not work as expected if `stt_router` won't have shared state (access to the same `model_manager`) with the main FastAPI `app`. TODO: verify
+        from speaches.routers.stt import (
+            router as stt_router,
+        )
+
+        http_client = AsyncClient(
+            transport=ASGITransport(stt_router),
+            base_url="http://test/v1",
+        )  # NOTE: "test" can be replaced with any other value
+    else:
+        http_client = AsyncClient(
+            base_url=f"{config.loopback_host_url}/v1",
+        )
     oai_client = AsyncOpenAI(
         http_client=http_client,
         api_key=config.api_key.get_secret_value() if config.api_key else "cant-be-empty",
         max_retries=1,
+        base_url=f"{config.loopback_host_url}/v1",
     )
     return oai_client.audio.transcriptions
 
