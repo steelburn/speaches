@@ -2,6 +2,7 @@ from speaches.text_utils import (
     srt_format_timestamp,
     vtt_format_timestamp,
     strip_markdown_emphasis,
+    EOFTextChunker,
 )
 
 
@@ -40,3 +41,80 @@ def test_strip_markdown_emphasis() -> None:
     assert strip_markdown_emphasis("No markdown here") == "No markdown here"
     assert strip_markdown_emphasis("**Bold** at the *beginning* and _end_ of **text**") == "Bold at the beginning and end of text"
     assert strip_markdown_emphasis("Nested **bold *with italic* inside**") == "Nested bold with italic inside"
+
+
+import asyncio
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_eof_text_chunker() -> None:
+    # Test that the chunker only yields when closed
+    chunker = EOFTextChunker()
+    
+    # Add tokens
+    chunker.add_token("Hello ")
+    chunker.add_token("world!")
+    
+    # Create task to iterate through chunks
+    results = []
+    
+    async def collect_chunks():
+        async for chunk in chunker:
+            results.append(chunk)
+    
+    task = asyncio.create_task(collect_chunks())
+    
+    # Wait a moment to ensure the task had a chance to run
+    await asyncio.sleep(0.1)
+    
+    # No chunks should be yielded yet
+    assert len(results) == 0
+    
+    # Close the chunker
+    chunker.close()
+    
+    # Wait for the task to complete
+    await asyncio.sleep(0.1)
+    await task
+    
+    # Now we should have the full text as a single chunk
+    assert len(results) == 1
+    assert results[0] == "Hello world!"
+
+
+@pytest.mark.asyncio
+async def test_eof_text_chunker_empty() -> None:
+    # Test that the chunker doesn't yield anything when closed with no content
+    chunker = EOFTextChunker()
+    
+    results = []
+    
+    async def collect_chunks():
+        async for chunk in chunker:
+            results.append(chunk)
+    
+    task = asyncio.create_task(collect_chunks())
+    
+    # Wait a moment
+    await asyncio.sleep(0.1)
+    
+    # Close the chunker without adding any tokens
+    chunker.close()
+    
+    # Wait for the task to complete
+    await asyncio.sleep(0.1)
+    await task
+    
+    # No chunks should be yielded
+    assert len(results) == 0
+
+
+@pytest.mark.asyncio
+async def test_eof_text_chunker_closed_error() -> None:
+    # Test that adding tokens to a closed chunker raises an error
+    chunker = EOFTextChunker()
+    chunker.close()
+    
+    with pytest.raises(RuntimeError):
+        chunker.add_token("This should fail")

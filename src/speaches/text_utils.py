@@ -2,12 +2,30 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterable
 
     from speaches.api_types import TranscriptionSegment
+
+
+class TextChunker(Protocol):
+    """Protocol defining the interface for text chunkers."""
+
+    def add_token(self, token: str) -> None:
+        """Add a token (text chunk) to the chunker."""
+        ...
+
+    def close(self) -> None:
+        """Close the chunker, preventing further token additions."""
+        ...
+
+    async def __aiter__(self) -> AsyncGenerator[str]:
+        """Iterate through chunks of text.
+        Different implementations may chunk text differently.
+        """  # noqa: D205
+        yield ""
 
 
 def segments_to_text(segments: Iterable[TranscriptionSegment]) -> str:
@@ -49,6 +67,11 @@ def segments_to_srt(segment: TranscriptionSegment, i: int) -> str:
 # TODO: maybe create MultiSentenceChunker to return multiple sentence (when available) at a time
 # TODO: consider different handling of small sentences. i.e. if a sentence consist of only couple of words wait until more words are available
 class SentenceChunker:
+    """A text chunker that yields text in sentence chunks.
+
+    Implements the TextChunker protocol.
+    """
+
     def __init__(self) -> None:
         self._content = ""
         self._is_closed = False
@@ -139,3 +162,40 @@ def strip_markdown_emphasis(text: str) -> str:
     text = re.sub(r"_(.*?)_", r"\1", text)
 
     return text
+
+
+class EOFTextChunker:
+    """A text chunker that yields all accumulated text only when closed.
+
+    Implements the TextChunker protocol.
+    """
+
+    def __init__(self) -> None:
+        self._content = ""
+        self._is_closed = False
+        self._new_token_event = asyncio.Event()
+
+    def add_token(self, token: str) -> None:
+        """Add a token (text chunk) to the chunker."""
+        if self._is_closed:
+            raise RuntimeError("Cannot add tokens to a closed EOFTextChunker")  # noqa: EM101
+
+        self._content += token
+        self._new_token_event.set()
+
+    def close(self) -> None:
+        """Close the chunker, preventing further token additions."""
+        self._is_closed = True
+        self._new_token_event.set()
+
+    async def __aiter__(self) -> AsyncGenerator[str]:
+        while True:
+            if self._is_closed:
+                # Yield all content once at the end
+                if self._content:
+                    yield self._content
+                return
+
+            # Wait for more content or close signal
+            self._new_token_event.clear()
+            await self._new_token_event.wait()
