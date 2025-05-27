@@ -34,18 +34,20 @@ def list_local_models(task: ModelTask | None = None) -> JSONResponse:
 
 
 # TODO: this is very naive implementation. It should be improved
-@router.get("/v1/models/{model_id:path}")
-def get_local_model(model_id: ModelId) -> Model:
+# NOTE: without `response_model` and `JSONResponse` extra fields aren't included in the response
+@router.get("/v1/models/{model_id:path}", response_model=Model)
+def get_local_model(model_id: ModelId) -> JSONResponse:
     models: list[Model] = []
     models.extend(list(kokoro_model_registry.list_local_models()))
     models.extend(list(piper_model_registry.list_local_models()))
     models.extend(list(whisper_model_registry.list_local_models()))
     for model in models:
         if model.id == model_id:
-            return model
+            return JSONResponse(content=model.model_dump())
     raise HTTPException(status_code=404, detail=f"Model '{model_id}' not found")
 
 
+# NOTE: without `response_model` and `JSONResponse` extra fields aren't included in the response
 @router.post("/v1/models/{model_id:path}")
 def download_remote_model(model_id: ModelId) -> Response:
     if model_id in [model.id for model in kokoro_model_registry.list_remote_models()]:
