@@ -2,9 +2,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import gradio as gr
-import httpx
 
-from speaches.api_types import Voice
 from speaches.config import Config
 from speaches.routers.speech import (
     MAX_SAMPLE_RATE,
@@ -24,17 +22,18 @@ def create_tts_tab(config: Config) -> None:
         return gr.Dropdown(choices=model_ids, label="Model")
 
     async def update_voices_dropdown(model_id: str | None, request: gr.Request) -> gr.Dropdown:
-        params = httpx.QueryParams({"model_id": model_id}) if model_id is not None else None
+        if model_id is None:
+            return gr.Dropdown(choices=[], label="Voice")
         http_client = http_client_from_gradio_req(request, config)
-        res = (await http_client.get("/v1/audio/speech/voices", params=params)).raise_for_status()
-        voice_ids = [Voice.model_validate(x).voice_id for x in res.json()]
-        return gr.Dropdown(choices=voice_ids, label="Voice")
+        res = (await http_client.get(f"/v1/models/{model_id}")).raise_for_status()
+        data = res.json()
+        voices = data["voices"]
+        return gr.Dropdown(choices=[voice["name"] for voice in voices], label="Voice")
 
     async def handle_audio_speech(
         text: str,
         model: str,
         voice: str,
-        language: str | None,
         response_format: str,
         speed: float,
         sample_rate: int | None,
@@ -47,7 +46,7 @@ def create_tts_tab(config: Config) -> None:
             voice=voice,  # pyright: ignore[reportArgumentType]
             response_format=response_format,  # pyright: ignore[reportArgumentType]
             speed=speed,
-            extra_body={"language": language, "sample_rate": sample_rate},
+            extra_body={"sample_rate": sample_rate},
         )
         audio_bytes = res.response.read()
         with NamedTemporaryFile(suffix=f".{response_format}", delete=False) as file:

@@ -1,10 +1,8 @@
 from collections.abc import Iterable
-from functools import cached_property
-from pathlib import Path
 from typing import Literal
 
 import faster_whisper.transcribe
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict
 
 from speaches.text_utils import segments_to_text
 
@@ -165,25 +163,3 @@ TIMESTAMP_GRANULARITIES_COMBINATIONS: list[TimestampGranularities] = [
     ["word", "segment"],
     ["segment", "word"],  # same as ["word", "segment"] but order is different
 ]
-
-
-class Voice(BaseModel):
-    """Similar structure to the GET /v1/models response but with extra fields."""
-
-    model_id: str
-    voice_id: str
-    created: int
-    owned_by: str
-    sample_rate: int
-    model_path: Path = Field(
-        examples=[
-            "/home/nixos/.cache/huggingface/hub/models--rhasspy--piper-voices/snapshots/3d796cc2f2c884b3517c527507e084f7bb245aea/en/en_US/amy/medium/en_US-amy-medium.onnx"
-        ]
-    )
-    object: Literal["voice"] = "voice"
-
-    @computed_field(examples=["rhasspy/piper-voices/en_US-amy-medium"])
-    @cached_property
-    def id(self) -> str:
-        """Unique identifier for the model + voice."""
-        return self.model_id + "/" + self.voice_id
