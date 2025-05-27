@@ -62,6 +62,9 @@ def segments_to_srt(segment: TranscriptionSegment, i: int) -> str:
     return f"{i + 1}\n{srt_format_timestamp(segment.start)} --> {srt_format_timestamp(segment.end)}\n{segment.text}\n\n"
 
 
+MIN_SENTENCE_LENGTH = 20
+
+
 # TODO: Add tests
 # TODO: take into account various sentence endings like "..."
 # TODO: maybe create MultiSentenceChunker to return multiple sentence (when available) at a time
@@ -72,12 +75,14 @@ class SentenceChunker:
     Implements the TextChunker protocol.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, min_sentence_length: int = MIN_SENTENCE_LENGTH) -> None:
         self._content = ""
         self._is_closed = False
         self._new_token_event = asyncio.Event()
         self._sentence_endings = {".", "!", "?"}
         self._processed_index = 0
+        self._min_sentence_length = min_sentence_length
+        self._accumulated_text = ""
 
     def add_token(self, token: str) -> None:
         """Add a token (text chunk) to the chunker."""
@@ -104,15 +109,30 @@ class SentenceChunker:
             if next_end != -1:
                 # We found a complete sentence
                 sentence_end = next_end + 1
-                sentence = self._content[self._processed_index : sentence_end]
+                new_sentence = self._content[self._processed_index : sentence_end]
                 self._processed_index = sentence_end
-                yield sentence
+
+                # Combine with any previously accumulated text
+                combined_text = self._accumulated_text + new_sentence
+
+                # Check if the combined text meets the minimum length requirement
+                if len(combined_text.strip()) >= self._min_sentence_length:
+                    self._accumulated_text = ""  # Reset accumulated text
+                    yield combined_text
+                else:
+                    # If too short, accumulate for next time
+                    self._accumulated_text = combined_text
             else:
                 # No complete sentence found
                 if self._is_closed:
-                    # If there's any remaining content, yield it
-                    if self._processed_index < len(self._content):
-                        yield self._content[self._processed_index :]
+                    # If there's any remaining content, combine with accumulated text and yield
+                    if self._processed_index < len(self._content) or self._accumulated_text:
+                        remaining = (
+                            self._content[self._processed_index :] if self._processed_index < len(self._content) else ""
+                        )
+                        final_text = self._accumulated_text + remaining
+                        if final_text.strip():  # Only yield if there's non-whitespace content
+                            yield final_text
                     return
 
                 # Wait for more content
