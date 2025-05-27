@@ -187,7 +187,7 @@ async def realtime_webrtc(
     logger.info(f"Received offer: {offer.sdp[:5]}")
 
     # Create a new RTCPeerConnection
-    rtc_configuration = RTCConfiguration()
+    rtc_configuration = RTCConfiguration(iceServers=[])
     pc = RTCPeerConnection(rtc_configuration)
 
     pc.on("datachannel", lambda channel: datachannel_handler(ctx, channel))
