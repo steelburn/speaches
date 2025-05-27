@@ -62,7 +62,7 @@ class WhisperModelRegistry(ModelRegistry[Model, WhisperModelFiles]):
                 )
 
     def get_model_files(self, model_id: str) -> WhisperModelFiles:
-        model_files = list_model_files(model_id)
+        model_files = list(list_model_files(model_id))
 
         # the necessary files are specified in `faster_whisper.transcribe`
         model_file_path = next(file_path for file_path in model_files if file_path.name == "model.bin")

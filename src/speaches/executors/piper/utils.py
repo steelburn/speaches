@@ -121,7 +121,7 @@ class PiperModelRegistry(ModelRegistry):
                 )
 
     def get_model_files(self, model_id: str) -> PiperModelFiles:
-        model_files = list_model_files(model_id)
+        model_files = list(list_model_files(model_id))
 
         model_file_path = next(file_path for file_path in model_files if file_path.name == "model.onnx")
         config_file_path = next(file_path for file_path in model_files if file_path.name == "config.json")
