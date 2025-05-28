@@ -14,6 +14,9 @@ from speaches.realtime.input_audio_buffer_event_router import resample_audio_dat
 
 logger = logging.getLogger(__name__)
 
+# NOTE: without having this delay, the audio frames are not being delivered properly. Could be because they are being dropped but I'm not sure. Having the delay be slightly smaller than the frame duration seems to work well.
+FRAME_DELAY = 0.008
+
 
 class AudioStreamTrack(MediaStreamTrack):
     kind = "audio"
@@ -39,9 +42,7 @@ class AudioStreamTrack(MediaStreamTrack):
 
         try:
             frame = await self.frame_queue.get()
-            await asyncio.sleep(
-                0.005
-            )  # NOTE: I believe some delay is neccessary to prevent buffers from being dropped.
+            await asyncio.sleep(FRAME_DELAY)
         except asyncio.CancelledError as e:
             raise MediaStreamError("Track has ended") from e  # noqa: EM101
         else:
