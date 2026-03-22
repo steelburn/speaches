@@ -75,18 +75,12 @@
           nativeBuildInputs =
             with pkgs;
             [
-              act
               docker
               docker-compose
               ffmpeg-full
               go-task
-              grafana-loki
-              parallel
-              pv
               python312
-              tempo
               uv
-              websocat
             ]
             ++ linuxOnlyPkgs;
 
